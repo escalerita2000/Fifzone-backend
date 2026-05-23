@@ -1,7 +1,7 @@
 <?php
 namespace App\Exports;
 
-use App\Models\Sale;
+use App\Models\Venta;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -14,14 +14,14 @@ class SalesExport implements FromCollection, WithHeadings, WithStyles, WithColum
 {
     public function collection()
     {
-        return Sale::with('items')->latest()->get()->map(fn($s) => [
-            'ID'       => $s->id,
-            'Fecha'    => $s->created_at->format('d/m/Y H:i'),
-            'Cliente'  => $s->customer,
-            'Tipo'     => $s->type === 'external' ? 'Externo' : 'Interno',
-            'Items'    => $s->items->map(fn($i) => "{$i->product_name} x{$i->quantity}")->implode(', '),
+        return Venta::with(['items.producto', 'usuario'])->latest('fecha')->get()->map(fn($s) => [
+            'ID'       => $s->id_venta,
+            'Fecha'    => $s->fecha ? $s->fecha->format('d/m/Y H:i') : '',
+            'Cliente'  => $s->customer ?? $s->usuario?->nombre ?? 'Cliente General',
+            'Tipo'     => $s->canal === 'web' ? 'Externo' : 'Interno',
+            'Items'    => $s->items->map(fn($i) => ($i->producto?->nombre ?? 'Producto Eliminado') . " x{$i->cantidad}")->implode(', '),
             'Total'    => (float) $s->total,
-            'Ganancia' => (float) $s->profit,
+            'Ganancia' => (float) ($s->total - $s->items->sum(fn($i) => ($i->producto?->precio_costo ?? ($i->precio_unitario * 0.65)) * $i->cantidad)),
         ]);
     }
 
@@ -44,7 +44,9 @@ class SalesExport implements FromCollection, WithHeadings, WithStyles, WithColum
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FF4B63']],
         ]);
         $last = $sheet->getHighestRow();
-        $sheet->getStyle("F2:G{$last}")->getNumberFormat()->setFormatCode('$#,##0');
+        if ($last > 1) {
+            $sheet->getStyle("F2:G{$last}")->getNumberFormat()->setFormatCode('$#,##0');
+        }
         return [];
     }
 }

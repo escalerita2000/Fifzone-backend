@@ -20,22 +20,22 @@
 <body>
 <div class="header">
   <h1>FitZone — Reporte de Inventario</h1>
-  <p>Generado: {{ $generated_at }} | Productos: {{ $products->count() }} | Sin stock: {{ $out_of_stock }} | Stock bajo: {{ $low_stock }}</p>
+  <p>Generado: {{ $generated_at }} | Productos: {{ $products->count() }} | Sin stock: {{ $out_of_stock }} | Stock bajo: {{ $low_stock }} | Valor total: ${{ number_format($total_value,0,',','.') }}</p>
 </div>
 <table>
   <thead><tr><th>ID</th><th>Producto</th><th>Categoría</th><th>Stock</th><th>Costo</th><th>P.Venta</th><th>Valor Stock</th><th>Estado</th></tr></thead>
   <tbody>
     @foreach($products as $p)
     <tr>
-      <td>{{ $p->id }}</td>
-      <td>{{ $p->name }}</td>
-      <td>{{ $p->category }}</td>
-      <td>{{ $p->stock }}</td>
-      <td>${{ number_format($p->cost_price,0,',','.') }}</td>
-      <td>${{ number_format($p->sale_price,0,',','.') }}</td>
-      <td>${{ number_format($p->cost_price*$p->stock,0,',','.') }}</td>
-      <td class="{{ $p->stock===0?'out':($p->stock<=5?'low':'ok') }}">
-        {{ $p->stock===0?'AGOTADO':($p->stock<=5?'BAJO':'OK') }}
+      <td>{{ $p->id_producto }}</td>
+      <td>{{ $p->nombre }}</td>
+      <td>{{ $p->categoria?->nombre ?? 'Sin Categoría' }}</td>
+      <td>{{ $p->stock_actual }}</td>
+      <td>${{ number_format($p->precio_costo ?? 0,0,',','.') }}</td>
+      <td>${{ number_format($p->precio_venta,0,',','.') }}</td>
+      <td>${{ number_format(($p->precio_costo ?? 0)*$p->stock_actual,0,',','.') }}</td>
+      <td class="{{ $p->stock_actual===0?'out':($p->stock_actual<=5?'low':'ok') }}">
+        {{ $p->stock_actual===0?'AGOTADO':($p->stock_actual<=5?'BAJO':'OK') }}
       </td>
     </tr>
     @endforeach

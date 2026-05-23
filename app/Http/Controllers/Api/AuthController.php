@@ -18,25 +18,35 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password_hash)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Credenciales incorrectas.',
             ], 401);
         }
 
+        if (!$user->activo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El usuario se encuentra inactivo.',
+            ], 403);
+        }
+
         $user->tokens()->delete();
         $token = $user->createToken('fitzone-token')->plainTextToken;
 
+        // Registrar ultimo acceso
+        $user->update(['ultimo_acceso' => now()]);
+
         return response()->json([
             'success' => true,
-            'message' => "Bienvenido, {$user->name}",
+            'message' => "Bienvenido, {$user->nombre}",
             'token'   => $token,
             'user'    => [
-                'id'    => $user->id,
-                'name'  => $user->name,
+                'id'    => $user->id_usuario,
+                'name'  => $user->nombre,
                 'email' => $user->email,
-                'role'  => $user->role,
+                'role'  => $user->rol,
             ],
         ]);
     }
@@ -45,16 +55,17 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name'     => 'required|string',
-            'email'    => 'required|email|unique:users,email',
+            'name'     => 'required|string|max:150',
+            'email'    => 'required|email|unique:usuarios,email',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'role'     => 'user',
+            'nombre'        => $request->name,
+            'email'         => $request->email,
+            'password_hash' => Hash::make($request->password),
+            'rol'           => 'user',
+            'activo'        => true,
         ]);
 
         $token = $user->createToken('fitzone-token')->plainTextToken;
@@ -62,10 +73,10 @@ class AuthController extends Controller
         return response()->json([
             'token'   => $token,
             'user'    => [
-                'id'    => $user->id,
-                'name'  => $user->name,
+                'id'    => $user->id_usuario,
+                'name'  => $user->nombre,
                 'email' => $user->email,
-                'role'  => $user->role,
+                'role'  => $user->rol,
             ],
         ]);
     }
@@ -80,6 +91,15 @@ class AuthController extends Controller
     // GET /api/me
     public function me(Request $request)
     {
-        return response()->json(['success' => true, 'user' => $request->user()]);
+        $user = $request->user();
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id'    => $user->id_usuario,
+                'name'  => $user->nombre,
+                'email' => $user->email,
+                'role'  => $user->rol,
+            ]
+        ]);
     }
 }

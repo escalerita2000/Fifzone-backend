@@ -2,88 +2,167 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
+use App\Models\Producto;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
+    // GET /api/products
     public function index(Request $request)
     {
-        $query = Product::query();
+        $query = Producto::with(['categoria', 'marca'])->where('activo', true);
 
-        if ($request->filled('category'))     $query->where('category', $request->category);
-        if ($request->boolean('low_stock'))   $query->where('stock', '<=', 5);
-        if ($request->filled('search'))       $query->where('name', 'like', '%'.$request->search.'%');
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nombre', 'ilike', "%{$search}%")
+                  ->orWhere('sku', 'ilike', "%{$search}%");
+            });
+        }
 
-        $products = $query->orderBy('name')->get()->map(function ($p) {
-            $p->stock_status = $p->stock_status;
-            return $p;
+        $productos = $query->orderBy('nombre')->get()->map(function ($p) {
+            return [
+                'id'            => $p->id_producto,
+                'nombre'        => $p->nombre,
+                'sku'           => $p->sku,
+                'descripcion'   => $p->descripcion,
+                'categoria'     => $p->categoria?->nombre,
+                'marca'         => $p->marca?->nombre,
+                'precio'        => (float) $p->precio_venta,
+                'precio_costo'  => (float) $p->precio_costo,
+                'stock'         => $p->stock_actual,
+                'estado_stock'  => $p->estado_stock,
+                'margen'        => $p->margen,
+                'imagen'        => $p->imagen_url,
+            ];
         });
 
-        return response()->json(['success' => true, 'total' => $products->count(), 'products' => $products]);
-    }
-
-    public function show(Product $product)
-    {
-        $product->stock_status = $product->stock_status;
-        return response()->json(['success' => true, 'product' => $product]);
-    }
-
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'name'           => 'required|string|max:150',
-            'category'       => 'required|string|max:80',
-            'description'    => 'nullable|string',
-            'image'          => 'nullable|url',
-            'cost_price'     => 'required|numeric|min:0',
-            'internal_price' => 'required|numeric|min:0',
-            'sale_price'     => 'required|numeric|min:0',
-            'stock'          => 'required|integer|min:0',
+        return response()->json([
+            'success'   => true,
+            'total'     => $productos->count(),
+            'data'      => $productos,
+            'products'  => $productos,
         ]);
-
-        $product = Product::create($data);
-        return response()->json(['success' => true, 'message' => 'Producto creado.', 'product' => $product], 201);
-    }
-
-    public function update(Request $request, Product $product)
-    {
-        $data = $request->validate([
-            'name'           => 'sometimes|string|max:150',
-            'category'       => 'sometimes|string|max:80',
-            'description'    => 'nullable|string',
-            'image'          => 'nullable|url',
-            'cost_price'     => 'sometimes|numeric|min:0',
-            'internal_price' => 'sometimes|numeric|min:0',
-            'sale_price'     => 'sometimes|numeric|min:0',
-            'stock'          => 'sometimes|integer|min:0',
-        ]);
-        $product->update($data);
-        return response()->json(['success' => true, 'message' => 'Producto actualizado.', 'product' => $product->fresh()]);
-    }
-
-    public function destroy(Product $product)
-    {
-        $name = $product->name;
-        $product->delete();
-        return response()->json(['success' => true, 'message' => "Producto \"{$name}\" eliminado."]);
     }
 
     public function stockSummary()
     {
-        $products = Product::all();
-        $items = $products->map(fn($p) => [
-            'id' => $p->id, 'name' => $p->name, 'category' => $p->category,
-            'stock' => $p->stock, 'status' => $p->stock_status,
-            'stock_value' => $p->stock * $p->cost_price,
-        ]);
+        $totalProducts = Producto::where('activo', true)->count();
+        $totalStock = Producto::where('activo', true)->sum('stock_actual');
+        $lowStockProducts = Producto::where('activo', true)
+            ->where(function ($query) {
+                $query->whereColumn('stock_actual', '<=', 'stock_minimo')
+                      ->orWhere('stock_actual', '<=', 5);
+            })->count();
+
         return response()->json([
-            'success'               => true,
-            'total_products'        => $products->count(),
-            'out_of_stock'          => $products->where('stock', 0)->count(),
-            'low_stock'             => $products->whereBetween('stock', [1, 5])->count(),
-            'total_inventory_value' => $products->sum(fn($p) => $p->stock * $p->cost_price),
-            'items'                 => $items,
+            'success' => true,
+            'summary' => [
+                'total_products' => $totalProducts,
+                'total_stock' => $totalStock,
+                'low_stock' => $lowStockProducts,
+            ]
+        ]);
+    }
+
+    // POST /api/products
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'nombre'      => 'required|string|max:150',
+            'sku'         => 'required|string|max:60|unique:productos,sku',
+            'precio'      => 'required|numeric|min:0',
+            'stock'       => 'required|integer|min:0',
+            'descripcion' => 'nullable|string',
+        ]);
+
+        $producto = Producto::create([
+            'nombre'        => $data['nombre'],
+            'sku'           => $data['sku'],
+            'precio_venta'  => $data['precio'],
+            'precio_costo'  => $data['precio'] * 0.65, // Generar un costo aproximado del 65% para cálculo de ganancias
+            'stock_actual'  => $data['stock'],
+            'stock_minimo'  => 5,
+            'descripcion'   => $data['descripcion'] ?? null,
+            'activo'        => true,
+        ]);
+
+        $formatted = [
+            'id'            => $producto->id_producto,
+            'nombre'        => $producto->nombre,
+            'sku'           => $producto->sku,
+            'descripcion'   => $producto->descripcion,
+            'categoria'     => null,
+            'marca'         => null,
+            'precio'        => (float) $producto->precio_venta,
+            'precio_costo'  => (float) $producto->precio_costo,
+            'stock'         => $producto->stock_actual,
+            'estado_stock'  => $producto->estado_stock,
+            'margen'        => $producto->margen,
+            'imagen'        => $producto->imagen_url,
+        ];
+
+        return response()->json([
+            'success' => true,
+            'product' => $formatted,
+            'data'    => $formatted,
+        ], 201);
+    }
+
+    // PUT /api/products/{id}
+    public function update(Request $request, $id)
+    {
+        $producto = Producto::where('id_producto', $id)->firstOrFail();
+
+        $data = $request->validate([
+            'nombre'      => 'required|string|max:150',
+            'sku'         => "required|string|max:60|unique:productos,sku,{$id},id_producto",
+            'precio'      => 'required|numeric|min:0',
+            'stock'       => 'required|integer|min:0',
+            'descripcion' => 'nullable|string',
+        ]);
+
+        $producto->update([
+            'nombre'       => $data['nombre'],
+            'sku'          => $data['sku'],
+            'precio_venta' => $data['precio'],
+            'precio_costo' => $data['precio'] * 0.65,
+            'stock_actual' => $data['stock'],
+            'descripcion'  => $data['descripcion'] ?? null,
+        ]);
+
+        $formatted = [
+            'id'            => $producto->id_producto,
+            'nombre'        => $producto->nombre,
+            'sku'           => $producto->sku,
+            'descripcion'   => $producto->descripcion,
+            'categoria'     => $producto->categoria?->nombre,
+            'marca'         => $producto->marca?->nombre,
+            'precio'        => (float) $producto->precio_venta,
+            'precio_costo'  => (float) $producto->precio_costo,
+            'stock'         => $producto->stock_actual,
+            'estado_stock'  => $producto->estado_stock,
+            'margen'        => $producto->margen,
+            'imagen'        => $producto->imagen_url,
+        ];
+
+        return response()->json([
+            'success' => true,
+            'product' => $formatted,
+            'data'    => $formatted,
+        ]);
+    }
+
+    // DELETE /api/products/{id}
+    public function destroy($id)
+    {
+        $producto = Producto::where('id_producto', $id)->firstOrFail();
+        // Desactivar lógicamente para no romper el historial de ventas
+        $producto->update(['activo' => false]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto eliminado correctamente.'
         ]);
     }
 }

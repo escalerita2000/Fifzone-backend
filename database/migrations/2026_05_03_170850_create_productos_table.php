@@ -11,8 +11,8 @@ return new class extends Migration {
             $table->string('sku', 60)->unique();
             $table->string('codigo_barras', 60)->unique()->nullable();
             $table->text('descripcion')->nullable();
-            $table->unsignedInteger('id_categoria');
-            $table->foreign('id_categoria')->references('id_categoria')->on('categorias');
+            $table->unsignedInteger('id_categoria')->nullable();
+            $table->foreign('id_categoria')->references('id_categoria')->on('categorias')->nullOnDelete();
             $table->unsignedInteger('id_marca')->nullable();
             $table->foreign('id_marca')->references('id_marca')->on('marcas')->nullOnDelete();
             $table->string('unidad_medida', 30)->default('unidad');

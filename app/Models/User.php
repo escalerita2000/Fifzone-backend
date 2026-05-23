@@ -10,19 +10,39 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'role'];
-    protected $hidden   = ['password', 'remember_token'];
+    protected $table = 'usuarios';
+    protected $primaryKey = 'id_usuario';
+
+    protected $fillable = [
+        'nombre',
+        'email',
+        'password_hash',
+        'rol',
+        'activo',
+        'ultimo_acceso',
+    ];
+
+    protected $hidden = [
+        'password_hash',
+        'remember_token',
+    ];
+
+    public function getAuthPasswordName(): string
+    {
+        return 'password_hash';
+    }
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
+            'activo'            => 'boolean',
+            'ultimo_acceso'     => 'datetime',
         ];
     }
 
     public function sales()
     {
-        return $this->hasMany(Sale::class, 'registered_by');
+        return $this->hasMany(Venta::class, 'id_usuario', 'id_usuario');
     }
 }

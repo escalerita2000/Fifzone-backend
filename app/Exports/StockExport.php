@@ -1,7 +1,7 @@
 <?php
 namespace App\Exports;
 
-use App\Models\Product;
+use App\Models\Producto;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -14,16 +14,16 @@ class StockExport implements FromCollection, WithHeadings, WithStyles, WithColum
 {
     public function collection()
     {
-        return Product::all()->map(fn($p) => [
-            'ID'       => $p->id,
-            'Producto' => $p->name,
-            'Categoría'=> $p->category,
-            'Stock'    => $p->stock,
-            'Costo'    => (float) $p->cost_price,
-            'Interno'  => (float) $p->internal_price,
-            'Venta'    => (float) $p->sale_price,
-            'Estado'   => $p->stock === 0 ? 'AGOTADO' : ($p->stock <= 5 ? 'BAJO' : 'OK'),
-            'Valor'    => (float) ($p->cost_price * $p->stock),
+        return Producto::with('categoria')->where('activo', true)->get()->map(fn($p) => [
+            'ID'       => $p->id_producto,
+            'Producto' => $p->nombre,
+            'Categoría'=> $p->categoria?->nombre ?? 'Sin Categoría',
+            'Stock'    => $p->stock_actual,
+            'Costo'    => (float) $p->precio_costo,
+            'Interno'  => (float) ($p->precio_venta * 0.9), // precio interno estimado
+            'Venta'    => (float) $p->precio_venta,
+            'Estado'   => $p->stock_actual === 0 ? 'AGOTADO' : ($p->stock_actual <= 5 ? 'BAJO' : 'OK'),
+            'Valor'    => (float) (($p->precio_costo ?? 0) * $p->stock_actual),
         ]);
     }
 
@@ -46,8 +46,10 @@ class StockExport implements FromCollection, WithHeadings, WithStyles, WithColum
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FF4B63']],
         ]);
         $last = $sheet->getHighestRow();
-        $sheet->getStyle("E2:G{$last}")->getNumberFormat()->setFormatCode('$#,##0');
-        $sheet->getStyle("I2:I{$last}")->getNumberFormat()->setFormatCode('$#,##0');
+        if ($last > 1) {
+            $sheet->getStyle("E2:G{$last}")->getNumberFormat()->setFormatCode('$#,##0');
+            $sheet->getStyle("I2:I{$last}")->getNumberFormat()->setFormatCode('$#,##0');
+        }
         return [];
     }
 }
