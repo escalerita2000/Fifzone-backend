@@ -5,11 +5,14 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TiendaController;
+use App\Http\Controllers\Api\WompiController;
 use Illuminate\Support\Facades\Route;
 
 // ── Pública ──────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/wompi/signature', [WompiController::class, 'generateSignature']);
+
 // ── Tienda pública (no requiere login) ───────────────────
 Route::prefix('tienda')->group(function () {
     Route::get('/productos',        [TiendaController::class, 'productos']);
@@ -35,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales',        [SaleController::class, 'index']);
     Route::get('/sales/{sale}', [SaleController::class, 'show']);
     Route::post('/sales',       [SaleController::class, 'store']);
+
 
     Route::get('/dispositivos', function() {
         return response()->json([
