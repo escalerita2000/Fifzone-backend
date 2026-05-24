@@ -11,12 +11,17 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->api(append: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminOnly::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->shouldRenderJsonWhen(fn(Request $r, $e) => $r->is('api/*'));
+        $exceptions->shouldRenderJsonWhen(function ($request, $e) {
+            return $request->is('api/*');
+        });
 
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $r) {
             return response()->json(['success' => false, 'message' => 'No autenticado.'], 401);

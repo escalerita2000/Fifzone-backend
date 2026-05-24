@@ -18,6 +18,10 @@ Route::prefix('tienda')->group(function () {
     Route::get('/marcas',           [TiendaController::class, 'marcas']);
 });
 
+// ── Reportes públicos (descarga sin Sanctum) ─────────────
+Route::get('/reports/pdf',   [ReportController::class, 'pdf']);
+Route::get('/reports/excel', [ReportController::class, 'excel']);
+
 // ── Protegidas con Sanctum ───────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me',      [AuthController::class, 'me']);
@@ -31,9 +35,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales',        [SaleController::class, 'index']);
     Route::get('/sales/{sale}', [SaleController::class, 'show']);
     Route::post('/sales',       [SaleController::class, 'store']);
-
-    Route::get('/reports/pdf',   [ReportController::class, 'pdf']);
-    Route::get('/reports/excel', [ReportController::class, 'excel']);
 
     Route::get('/dispositivos', function() {
         return response()->json([
