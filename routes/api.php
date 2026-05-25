@@ -3,6 +3,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\RutinaController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TiendaController;
 use App\Http\Controllers\Api\WompiController;
@@ -11,7 +12,8 @@ use Illuminate\Support\Facades\Route;
 // ── Pública ──────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/wompi/signature', [WompiController::class, 'generateSignature']);
+Route::post('/wompi/signature', [WompiController::class, 'generateSignature']);
+Route::get('/rutinas', [RutinaController::class, 'index']);
 
 // ── Tienda pública (no requiere login) ───────────────────
 Route::prefix('tienda')->group(function () {
@@ -25,15 +27,21 @@ Route::prefix('tienda')->group(function () {
 Route::get('/reports/pdf',   [ReportController::class, 'pdf']);
 Route::get('/reports/excel', [ReportController::class, 'excel']);
 
+// ── Productos: todas públicas (admin usa tokens Supabase, no Sanctum) ───────
+Route::get('/products',               [ProductController::class, 'index']);
+Route::get('/products/stock/summary', [ProductController::class, 'stockSummary']);
+Route::get('/products/{product}',     [ProductController::class, 'show']);
+Route::post('/products',              [ProductController::class, 'store']);
+Route::put('/products/{product}',     [ProductController::class, 'update']);
+Route::patch('/products/{product}',   [ProductController::class, 'update']);
+Route::delete('/products/{product}',  [ProductController::class, 'destroy']);
+
 // ── Protegidas con Sanctum ───────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me',      [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/dashboard', [DashboardController::class, 'index']);
-
-    Route::get('/products/stock/summary', [ProductController::class, 'stockSummary']);
-    Route::apiResource('/products', ProductController::class);
 
     Route::get('/sales',        [SaleController::class, 'index']);
     Route::get('/sales/{sale}', [SaleController::class, 'show']);

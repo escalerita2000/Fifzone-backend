@@ -12,9 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
 
-        $middleware->append(
-            \Illuminate\Http\Middleware\HandleCors::class
-        );
+        // Desactivar HandleCors de Laravel — CORS lo maneja public/index.php
+        $middleware->remove(\Illuminate\Http\Middleware\HandleCors::class);
+
+        $middleware->validateCsrfTokens(except: [
+            '/api/*',
+        ]);
+
         $middleware->api(append: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);

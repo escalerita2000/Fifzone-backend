@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -45,6 +46,35 @@ class ProductController extends Controller
         ]);
     }
 
+    // GET /api/products/{id}
+    public function show($id)
+    {
+        $producto = Producto::with(['categoria', 'marca'])
+            ->where('id_producto', $id)
+            ->firstOrFail();
+
+        $formatted = [
+            'id'            => $producto->id_producto,
+            'nombre'        => $producto->nombre,
+            'sku'           => $producto->sku,
+            'descripcion'   => $producto->descripcion,
+            'categoria'     => $producto->categoria?->nombre,
+            'marca'         => $producto->marca?->nombre,
+            'precio'        => (float) $producto->precio_venta,
+            'precio_costo'  => (float) $producto->precio_costo,
+            'stock'         => $producto->stock_actual,
+            'estado_stock'  => $producto->estado_stock,
+            'margen'        => $producto->margen,
+            'imagen_url'    => $producto->imagen_url,
+        ];
+
+        return response()->json([
+            'success' => true,
+            'product' => $formatted,
+            'data'    => $formatted,
+        ]);
+    }
+
     public function stockSummary()
     {
         $totalProducts = Producto::where('activo', true)->count();
@@ -68,101 +98,48 @@ class ProductController extends Controller
     // POST /api/products
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'nombre'      => 'required|string|max:150',
-            'sku'         => 'required|string|max:60|unique:productos,sku',
-            'precio'      => 'required|numeric|min:0',
-            'stock'       => 'required|integer|min:0',
-            'descripcion' => 'nullable|string',
-        ]);
+        $id = DB::table('productos')->insertGetId([
+            'nombre'       => $request->nombre,
+            'sku'          => $request->sku,
+            'descripcion'  => $request->descripcion ?? null,
+            'id_categoria' => $request->id_categoria ?? null,
+            'id_marca'     => $request->id_marca ?? null,
+            'precio_venta' => $request->precio ?? 0,
+            'precio_costo' => ($request->precio ?? 0) * 0.65,
+            'stock_actual' => $request->stock ?? 0,
+            'stock_minimo' => 5,
+            'imagen_url'   => $request->imagen_url ?? null,
+            'activo'       => true,
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ], 'id_producto');
 
-        $producto = Producto::create([
-            'nombre'        => $data['nombre'],
-            'sku'           => $data['sku'],
-            'precio_venta'  => $data['precio'],
-            'precio_costo'  => $data['precio'] * 0.65, // Generar un costo aproximado del 65% para cálculo de ganancias
-            'stock_actual'  => $data['stock'],
-            'stock_minimo'  => 5,
-            'descripcion'   => $data['descripcion'] ?? null,
-            'activo'        => true,
-        ]);
-
-        $formatted = [
-            'id'            => $producto->id_producto,
-            'nombre'        => $producto->nombre,
-            'sku'           => $producto->sku,
-            'descripcion'   => $producto->descripcion,
-            'categoria'     => null,
-            'marca'         => null,
-            'precio'        => (float) $producto->precio_venta,
-            'precio_costo'  => (float) $producto->precio_costo,
-            'stock'         => $producto->stock_actual,
-            'estado_stock'  => $producto->estado_stock,
-            'margen'        => $producto->margen,
-            'imagen'        => $producto->imagen_url,
-        ];
-
-        return response()->json([
-            'success' => true,
-            'product' => $formatted,
-            'data'    => $formatted,
-        ], 201);
+        return response()->json(['success' => true, 'id' => $id], 201);
     }
 
     // PUT /api/products/{id}
     public function update(Request $request, $id)
     {
-        $producto = Producto::where('id_producto', $id)->firstOrFail();
+        $data = [];
+        if ($request->has('nombre'))      $data['nombre']       = $request->nombre;
+        if ($request->has('sku'))         $data['sku']          = $request->sku;
+        if ($request->has('descripcion')) $data['descripcion']  = $request->descripcion;
+        if ($request->has('precio'))      $data['precio_venta'] = $request->precio;
+        if ($request->has('stock'))       $data['stock_actual'] = $request->stock;
+        if ($request->has('imagen_url'))  $data['imagen_url']   = $request->imagen_url;
+        if ($request->has('id_categoria')) $data['id_categoria'] = $request->id_categoria;
+        if ($request->has('id_marca')) $data['id_marca'] = $request->id_marca;
 
-        $data = $request->validate([
-            'nombre'      => 'required|string|max:150',
-            'sku'         => "required|string|max:60|unique:productos,sku,{$id},id_producto",
-            'precio'      => 'required|numeric|min:0',
-            'stock'       => 'required|integer|min:0',
-            'descripcion' => 'nullable|string',
-        ]);
+        DB::table('productos')->where('id_producto', $id)->update($data);
 
-        $producto->update([
-            'nombre'       => $data['nombre'],
-            'sku'          => $data['sku'],
-            'precio_venta' => $data['precio'],
-            'precio_costo' => $data['precio'] * 0.65,
-            'stock_actual' => $data['stock'],
-            'descripcion'  => $data['descripcion'] ?? null,
-        ]);
-
-        $formatted = [
-            'id'            => $producto->id_producto,
-            'nombre'        => $producto->nombre,
-            'sku'           => $producto->sku,
-            'descripcion'   => $producto->descripcion,
-            'categoria'     => $producto->categoria?->nombre,
-            'marca'         => $producto->marca?->nombre,
-            'precio'        => (float) $producto->precio_venta,
-            'precio_costo'  => (float) $producto->precio_costo,
-            'stock'         => $producto->stock_actual,
-            'estado_stock'  => $producto->estado_stock,
-            'margen'        => $producto->margen,
-            'imagen'        => $producto->imagen_url,
-        ];
-
-        return response()->json([
-            'success' => true,
-            'product' => $formatted,
-            'data'    => $formatted,
-        ]);
+        return response()->json(['success' => true, 'message' => 'Producto actualizado']);
     }
 
     // DELETE /api/products/{id}
     public function destroy($id)
     {
-        $producto = Producto::where('id_producto', $id)->firstOrFail();
-        // Desactivar lógicamente para no romper el historial de ventas
-        $producto->update(['activo' => false]);
+        DB::table('productos')->where('id_producto', $id)->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Producto eliminado correctamente.'
-        ]);
+        return response()->json(['success' => true, 'message' => 'Producto eliminado']);
     }
 }

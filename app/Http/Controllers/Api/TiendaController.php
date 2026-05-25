@@ -53,7 +53,7 @@ class TiendaController extends Controller
                 'stock'         => $p->stock_actual,
                 'estado_stock'  => $p->estado_stock,
                 'margen'        => $p->margen,
-                'imagen'        => $p->imagen_url,
+                'imagen_url'    => $p->imagen_url,
             ];
         });
 
@@ -84,7 +84,7 @@ class TiendaController extends Controller
                 'precio'       => (float) $p->precio_venta,
                 'stock'        => $p->stock_actual,
                 'estado_stock' => $p->estado_stock,
-                'imagen'       => $p->imagen_url,
+                'imagen_url'   => $p->imagen_url,
                 'precios'      => $p->listaPrecios->map(fn($lp) => [
                     'tipo'   => $lp->tipo_cliente,
                     'precio' => (float) $lp->precio,
