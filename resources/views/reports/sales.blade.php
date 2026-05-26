@@ -24,14 +24,15 @@
   <tbody>
     @foreach($sales as $s)
     @php
-      $profit = $s->total - $s->items->sum(fn($i) => ($i->producto?->precio_costo ?? ($i->precio_unitario * 0.65)) * $i->cantidad);
+      $ventaItems = $ventaItems[$s->id_venta] ?? [];
+      $profit = $s->total - collect($ventaItems)->sum(fn($i) => ($i->producto?->precio_costo ?? ($i->precio_unitario * 0.65)) * $i->cantidad);
     @endphp
     <tr>
       <td>{{ $s->id_venta }}</td>
       <td>{{ $s->fecha ? $s->fecha->format('d/m/Y H:i') : '' }}</td>
       <td>{{ $s->usuario?->nombre ?? 'Cliente General' }}</td>
       <td>{{ $s->canal === 'web' ? 'Externo' : 'Interno' }}</td>
-      <td>{{ $s->items->map(fn($i) => ($i->producto?->nombre ?? 'Producto Eliminado') . " x{$i->cantidad}")->implode(', ') }}</td>
+      <td>{{ collect($ventaItems)->map(fn($i) => ($i->producto?->nombre ?? 'Producto Eliminado') . " x{$i->cantidad}")->implode(', ') }}</td>
       <td>${{ number_format($s->total,0,',','.') }}</td>
       <td>${{ number_format($profit,0,',','.') }}</td>
     </tr>

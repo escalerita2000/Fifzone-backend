@@ -11,27 +11,38 @@ use Illuminate\Support\Facades\Log;
 
 class SaleController extends Controller
 {
-    // GET /api/sales
+    // GET /api/sales - Público
     public function index()
     {
-        $sales = Venta::with(['items.producto', 'usuario'])
+        $sales = Venta::with(['usuario'])
             ->latest('fecha')
             ->get()
             ->map(function ($v) {
+                $ventaItems = VentaItem::where('id_venta', $v->id_venta)
+                    ->with('producto')
+                    ->get();
+
+                $totalCost = 0;
+                $itemsData = [];
+
+                foreach ($ventaItems as $i) {
+                    $cost = $i->producto?->precio_costo ?? 0;
+                    $totalCost += $cost * $i->cantidad;
+                    $itemsData[] = [
+                        'product_name' => $i->producto?->nombre ?? 'Producto Eliminado',
+                        'quantity'     => $i->cantidad,
+                        'price'        => (float) $i->precio_unitario,
+                    ];
+                }
+
                 return [
                     'id'         => $v->id_venta,
                     'fecha'      => $v->fecha->format('Y-m-d H:i:s'),
-                    'customer'   => $v->customer ?? $v->usuario?->nombre ?? 'Cliente General',
+                    'customer'   => $v->usuario?->nombre ?? 'Cliente General',
                     'type'       => $v->canal === 'web' ? 'external' : 'internal',
                     'total'      => (float) $v->total,
-                    'profit'     => (float) ($v->total - $v->items->sum(fn($i) => ($i->producto?->precio_costo ?? 0) * $i->cantidad)),
-                    'items'      => $v->items->map(function ($i) {
-                        return [
-                            'product_name' => $i->producto?->nombre ?? 'Producto Eliminado',
-                            'quantity'     => $i->cantidad,
-                            'price'        => (float) $i->precio_unitario,
-                        ];
-                    }),
+                    'profit'     => (float) ($v->total - $totalCost),
+                    'items'      => $itemsData,
                 ];
             });
 
