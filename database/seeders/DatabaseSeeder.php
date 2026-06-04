@@ -32,6 +32,14 @@ class DatabaseSeeder extends Seeder
             'activo'        => true,
         ]);
 
+        User::create([
+            'nombre'        => 'Carlos Coach',
+            'email'         => 'coach@fitzone.com',
+            'password_hash' => Hash::make('fitzone2024'),
+            'rol'           => 'coach',
+            'activo'        => true,
+        ]);
+
         // 2. Categorías
         $cat1 = Categoria::create(['nombre' => 'Proteínas',   'slug' => 'proteinas',   'descripcion' => 'Suplementos proteicos']);
         $cat2 = Categoria::create(['nombre' => 'Pre-entreno', 'slug' => 'pre-entreno', 'descripcion' => 'Suplementos energéticos para antes del entrenamiento']);
