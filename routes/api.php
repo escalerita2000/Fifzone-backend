@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CoachController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReportController;
@@ -18,46 +19,58 @@ Route::post('/wompi/webhook', [WompiController::class, 'webhook']);
 Route::get('/plans', function () {
     return response()->json([
         [
-            'nombre' => 'Plan Básico',
-            'precio' => '$29k',
+            'id' => 'fit',
+            'nombre' => 'FIT',
+            'precio' => 69900,
+            'precio_display' => '$69.900/mes',
             'periodo' => '/mes',
-            'descripcion' => 'Perfecto para comenzar tu journey fitness.',
+            'descripcion' => '1 sede, clases grupales, zona cardio y pesas, vestuarios, app de seguimiento, sin fidelidad obligatoria.',
             'beneficios' => [
-                'Acceso a zona cardio y pesas',
-                'Vestuarios y duchas',
+                '1 sede',
+                'Clases grupales',
+                'Zona cardio y pesas',
+                'Vestuarios',
                 'App de seguimiento',
-                '2 clases grupales / semana',
+                'Sin fidelidad obligatoria',
             ],
             'color' => 'default'
         ],
         [
-            'nombre' => 'Plan Premium',
-            'precio' => '$49k',
+            'id' => 'smart',
+            'nombre' => 'SMART',
+            'precio' => 99900,
+            'precio_display' => '$99.900/mes',
             'periodo' => '/mes',
-            'descripcion' => 'El más elegido por nuestros socios.',
+            'descripcion' => 'Multisede (hasta 3 sedes), clases ilimitadas, evaluación física mensual, descuentos 15% en tienda, soporte WhatsApp.',
             'beneficios' => [
-                'Todo lo del plan Básico',
+                'Multisede (hasta 3 sedes)',
                 'Clases ilimitadas',
-                '1 sesión con coach / mes',
-                'Descuentos en tienda',
+                'Evaluación física mensual',
+                'Descuentos 15% en tienda',
                 'Soporte WhatsApp',
             ],
             'color' => 'featured',
             'badge' => 'Más popular'
         ],
         [
-            'nombre' => 'Plan Elite',
-            'precio' => '$79k',
+            'id' => 'black',
+            'nombre' => 'BLACK',
+            'precio' => 119900,
+            'precio_display' => '$119.900/mes',
             'periodo' => '/mes',
-            'descripcion' => 'Experiencia completa sin límites.',
+            'descripcion' => 'Todas las sedes Colombia, coach personalizado asignado, rutina exclusiva mensual, plan nutricional, Smart Spa, llevar invitado 5 veces/mes, acceso 24/7.',
             'beneficios' => [
-                'Todo lo del plan Premium',
-                'Nutrición personalizada',
-                'Coach dedicado',
+                'Todas las sedes Colombia',
+                'Coach personalizado asignado',
+                'Rutina exclusiva mensual',
+                'Plan nutricional',
+                'Smart Spa',
+                'Llevar invitado 5 veces/mes',
                 'Acceso 24/7',
-                'Plan de entrenamiento exclusivo',
             ],
-            'color' => 'default'
+            'color' => 'default',
+            'badge' => 'Premium',
+            'requiere_coach' => true
         ]
     ]);
 });
@@ -86,6 +99,7 @@ Route::get('/products',               [ProductController::class, 'index']);
 Route::get('/products/stock/summary', [ProductController::class, 'stockSummary']);
 Route::get('/products/{product}',     [ProductController::class, 'show']);
 Route::post('/products',              [ProductController::class, 'store']);
+Route::post('/products/import',       [ProductController::class, 'import']);
 Route::put('/products/{product}',     [ProductController::class, 'update']);
 Route::patch('/products/{product}',   [ProductController::class, 'update']);
 Route::delete('/products/{product}',  [ProductController::class, 'destroy']);
@@ -122,5 +136,20 @@ Route::middleware('auth:sanctum')->group(function () {
                 ['id' => 4, 'usuario' => 'Andres Tobon', 'dispositivo' => 'Lazo de Saltar Speed 2.0', 'fecha_prestamo' => '2026-05-20 11:00', 'estado' => 'activo'],
             ]
         ]);
+    });
+
+    Route::prefix('coach')->group(function () {
+        Route::get('/miembros', [CoachController::class, 'miembros']);
+        Route::get('/rutina/{id_usuario}', [CoachController::class, 'obtenerRutina']);
+
+        Route::middleware(function ($request, $next) {
+            if ($request->user()->rol !== 'coach' && $request->user()->rol !== 'admin') {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+            return $next($request);
+        })->group(function () {
+            Route::post('/asignar', [CoachController::class, 'asignar']);
+            Route::post('/rutina/{id_usuario}', [CoachController::class, 'crearRutina']);
+        });
     });
 });

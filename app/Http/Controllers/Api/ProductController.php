@@ -142,4 +142,42 @@ class ProductController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Producto eliminado']);
     }
+
+    // POST /api/products/import
+    public function import(Request $request)
+    {
+        $request->validate([
+            'productos' => 'required|array',
+            'productos.*.nombre' => 'required|string',
+            'productos.*.sku' => 'required|string',
+            'productos.*.precio' => 'required|numeric',
+            'productos.*.stock' => 'required|integer',
+        ]);
+
+        $productos = array_map(function ($p) {
+            return [
+                'nombre'       => $p['nombre'],
+                'sku'          => $p['sku'],
+                'descripcion'  => $p['descripcion'] ?? null,
+                'id_categoria' => $p['id_categoria'] ?? null,
+                'id_marca'     => $p['id_marca'] ?? null,
+                'precio_venta' => $p['precio'],
+                'precio_costo' => $p['precio'] * 0.65,
+                'stock_actual' => $p['stock'],
+                'stock_minimo' => 5,
+                'imagen_url'   => $p['imagen_url'] ?? null,
+                'activo'       => true,
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ];
+        }, $request->productos);
+
+        Producto::insert($productos);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Productos importados correctamente',
+            'total' => count($productos)
+        ], 201);
+    }
 }

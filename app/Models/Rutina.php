@@ -12,6 +12,7 @@ class Rutina extends Model
         'descripcion',
         'duracion',
         'nivel',
+        'id_usuario',
     ];
     public $timestamps = true;
 }

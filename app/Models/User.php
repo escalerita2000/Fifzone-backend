@@ -20,6 +20,8 @@ class User extends Authenticatable
         'rol',
         'activo',
         'ultimo_acceso',
+        'plan',
+        'id_coach',
     ];
 
     protected $hidden = [
@@ -44,5 +46,15 @@ class User extends Authenticatable
     public function sales()
     {
         return $this->hasMany(Venta::class, 'id_usuario', 'id_usuario');
+    }
+
+    public function coach()
+    {
+        return $this->belongsTo(User::class, 'id_coach', 'id_usuario');
+    }
+
+    public function miembros()
+    {
+        return $this->hasMany(User::class, 'id_coach', 'id_usuario');
     }
 }
