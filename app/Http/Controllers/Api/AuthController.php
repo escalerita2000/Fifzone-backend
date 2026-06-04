@@ -88,10 +88,37 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'message' => 'Sesión cerrada.']);
     }
 
-    // GET /api/me
+    // GET /api/me — lee el JWT de Supabase del header Authorization y retorna el usuario
     public function me(Request $request)
     {
-        $user = $request->user();
+        $authHeader = $request->header('Authorization', '');
+
+        if (!str_starts_with($authHeader, 'Bearer ')) {
+            return response()->json(['success' => false, 'message' => 'Token no proporcionado.'], 401);
+        }
+
+        $jwt = substr($authHeader, 7);
+        $parts = explode('.', $jwt);
+
+        if (count($parts) !== 3) {
+            return response()->json(['success' => false, 'message' => 'Token inválido.'], 401);
+        }
+
+        // Decodificar payload (segunda parte del JWT) sin verificar firma
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+        $email = $payload['email'] ?? null;
+
+        if (!$email) {
+            return response()->json(['success' => false, 'message' => 'Email no encontrado en el token.'], 401);
+        }
+
+        $user = \App\Models\User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Usuario no encontrado.'], 404);
+        }
+
         return response()->json([
             'success' => true,
             'user' => [

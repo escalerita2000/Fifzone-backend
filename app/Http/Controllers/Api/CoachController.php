@@ -11,22 +11,45 @@ class CoachController extends Controller
     // GET /api/coach/miembros
     public function miembros(Request $request)
     {
-        $coach_id = $request->user()->id_usuario;
-        $miembros = User::where('id_coach', $coach_id)
+        // Leer email del JWT de Supabase en el header Authorization
+        $authHeader = $request->header('Authorization', '');
+
+        if (!str_starts_with($authHeader, 'Bearer ')) {
+            return response()->json(['success' => false, 'message' => 'Token no proporcionado.'], 401);
+        }
+
+        $parts = explode('.', substr($authHeader, 7));
+
+        if (count($parts) !== 3) {
+            return response()->json(['success' => false, 'message' => 'Token inválido.'], 401);
+        }
+
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+        $email   = $payload['email'] ?? null;
+
+        if (!$email) {
+            return response()->json(['success' => false, 'message' => 'Email no encontrado en el token.'], 401);
+        }
+
+        $coach = User::where('email', $email)->first();
+
+        if (!$coach) {
+            return response()->json(['success' => false, 'message' => 'Coach no encontrado.'], 404);
+        }
+
+        $miembros = User::where('id_coach', $coach->id_usuario)
             ->select('id_usuario', 'nombre', 'email', 'plan')
             ->get()
-            ->map(function ($member) {
-                return [
-                    'id_usuario' => $member->id_usuario,
-                    'nombre' => $member->nombre,
-                    'email' => $member->email,
-                    'plan' => $member->plan,
-                ];
-            });
+            ->map(fn($m) => [
+                'id_usuario' => $m->id_usuario,
+                'nombre'     => $m->nombre,
+                'email'      => $m->email,
+                'plan'       => $m->plan,
+            ]);
 
         return response()->json([
             'success' => true,
-            'data' => $miembros,
+            'data'    => $miembros,
         ]);
     }
 
