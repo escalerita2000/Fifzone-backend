@@ -7,17 +7,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        if (!Schema::hasTable('rutinas')) {
+            return;
+        }
+
         DB::statement('DELETE FROM rutinas WHERE id > 6');
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         //

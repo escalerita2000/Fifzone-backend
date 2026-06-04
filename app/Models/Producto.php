@@ -1,10 +1,12 @@
 <?php
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Producto extends Model
 {
+    use SoftDeletes;
+
     protected $table      = 'productos';
     protected $primaryKey = 'id_producto';
 
@@ -12,6 +14,7 @@ class Producto extends Model
         'nombre', 'sku', 'descripcion', 'id_categoria',
         'id_marca', 'precio_costo', 'precio_venta',
         'stock_actual', 'stock_minimo', 'imagen_url', 'activo',
+        'deleted_at', 'deleted_by', 'is_deleted',
     ];
 
     protected $casts = [

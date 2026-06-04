@@ -3,8 +3,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Venta extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'ventas';
     protected $primaryKey = 'id_venta';
 
@@ -24,6 +28,9 @@ class Venta extends Model
         'notas',
         'reference',
         'items',
+        'deleted_at',
+        'deleted_by',
+        'is_deleted',
     ];
 
     protected $casts = [
@@ -34,6 +41,7 @@ class Venta extends Model
         'impuesto_pct'    => 'decimal:2',
         'impuesto_valor'  => 'decimal:2',
         'total'           => 'decimal:2',
+        'is_deleted'      => 'boolean',
     ];
 
     public function items()

@@ -6,9 +6,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $table = 'usuarios';
     protected $primaryKey = 'id_usuario';
@@ -22,6 +24,9 @@ class User extends Authenticatable
         'ultimo_acceso',
         'plan',
         'id_coach',
+        'deleted_at',
+        'deleted_by',
+        'is_deleted',
     ];
 
     protected $hidden = [
