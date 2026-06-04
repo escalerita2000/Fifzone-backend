@@ -121,12 +121,14 @@ class ProductController extends Controller
     public function update(Request $request, $id)
     {
         $data = [];
-        if ($request->has('nombre'))      $data['nombre']       = $request->nombre;
-        if ($request->has('sku'))         $data['sku']          = $request->sku;
-        if ($request->has('descripcion')) $data['descripcion']  = $request->descripcion;
-        if ($request->has('precio'))      $data['precio_venta'] = $request->precio;
-        if ($request->has('stock'))       $data['stock_actual'] = $request->stock;
-        if ($request->has('imagen_url'))  $data['imagen_url']   = $request->imagen_url;
+        if ($request->has('nombre'))       $data['nombre']       = $request->nombre;
+        if ($request->has('sku'))          $data['sku']          = $request->sku;
+        if ($request->has('descripcion'))  $data['descripcion']  = $request->descripcion;
+        if ($request->has('precio'))       $data['precio_venta'] = $request->precio;
+        if ($request->has('stock'))        $data['stock_actual'] = $request->stock;
+        if ($request->has('imagen_url'))   $data['imagen_url']   = $request->imagen_url;
+        if ($request->has('id_categoria')) $data['id_categoria'] = $request->id_categoria;
+        if ($request->has('id_marca'))     $data['id_marca']     = $request->id_marca;
         if ($request->has('id_categoria')) $data['id_categoria'] = $request->id_categoria;
         if ($request->has('id_marca')) $data['id_marca'] = $request->id_marca;
 

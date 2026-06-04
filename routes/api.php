@@ -141,15 +141,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('coach')->group(function () {
         Route::get('/miembros', [CoachController::class, 'miembros']);
         Route::get('/rutina/{id_usuario}', [CoachController::class, 'obtenerRutina']);
-
-        Route::middleware(function ($request, $next) {
-            if ($request->user()->rol !== 'coach' && $request->user()->rol !== 'admin') {
-                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
-            }
-            return $next($request);
-        })->group(function () {
-            Route::post('/asignar', [CoachController::class, 'asignar']);
-            Route::post('/rutina/{id_usuario}', [CoachController::class, 'crearRutina']);
-        });
+        Route::post('/asignar', [CoachController::class, 'asignar']);
+        Route::post('/rutina/{id_usuario}', [CoachController::class, 'crearRutina']);
     });
 });
