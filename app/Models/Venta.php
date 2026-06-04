@@ -22,6 +22,8 @@ class Venta extends Model
         'estado',
         'canal',
         'notas',
+        'reference',
+        'items',
     ];
 
     protected $casts = [

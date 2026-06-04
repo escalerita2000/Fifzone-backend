@@ -13,6 +13,54 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/wompi/signature', [WompiController::class, 'generateSignature']);
+Route::post('/wompi/checkout', [WompiController::class, 'checkoutConfig']);
+Route::post('/wompi/webhook', [WompiController::class, 'webhook']);
+Route::get('/plans', function () {
+    return response()->json([
+        [
+            'nombre' => 'Plan Básico',
+            'precio' => '$29k',
+            'periodo' => '/mes',
+            'descripcion' => 'Perfecto para comenzar tu journey fitness.',
+            'beneficios' => [
+                'Acceso a zona cardio y pesas',
+                'Vestuarios y duchas',
+                'App de seguimiento',
+                '2 clases grupales / semana',
+            ],
+            'color' => 'default'
+        ],
+        [
+            'nombre' => 'Plan Premium',
+            'precio' => '$49k',
+            'periodo' => '/mes',
+            'descripcion' => 'El más elegido por nuestros socios.',
+            'beneficios' => [
+                'Todo lo del plan Básico',
+                'Clases ilimitadas',
+                '1 sesión con coach / mes',
+                'Descuentos en tienda',
+                'Soporte WhatsApp',
+            ],
+            'color' => 'featured',
+            'badge' => 'Más popular'
+        ],
+        [
+            'nombre' => 'Plan Elite',
+            'precio' => '$79k',
+            'periodo' => '/mes',
+            'descripcion' => 'Experiencia completa sin límites.',
+            'beneficios' => [
+                'Todo lo del plan Premium',
+                'Nutrición personalizada',
+                'Coach dedicado',
+                'Acceso 24/7',
+                'Plan de entrenamiento exclusivo',
+            ],
+            'color' => 'default'
+        ]
+    ]);
+});
 Route::get('/rutinas', [RutinaController::class, 'index']);
 
 // ── Tienda pública (no requiere login) ───────────────────
