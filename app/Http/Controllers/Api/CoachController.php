@@ -1,51 +1,39 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Rutina;
+use App\Services\RoutineService;
+use App\Services\UserService;
 use Illuminate\Http\Request;
 
 class CoachController extends Controller
 {
-    // GET /api/coach/miembros
+    protected $routineService;
+    protected $userService;
+
+    public function __construct(RoutineService $routineService, UserService $userService)
+    {
+        $this->routineService = $routineService;
+        $this->userService = $userService;
+    }
+
+    /**
+     * GET /api/coach/miembros
+     * Listar miembros asignados al coach autenticado
+     */
     public function miembros(Request $request)
     {
-        // Leer email del JWT de Supabase en el header Authorization
-        $authHeader = $request->header('Authorization', '');
-
-        if (!str_starts_with($authHeader, 'Bearer ')) {
-            return response()->json(['success' => false, 'message' => 'Token no proporcionado.'], 401);
-        }
-
-        $parts = explode('.', substr($authHeader, 7));
-
-        if (count($parts) !== 3) {
-            return response()->json(['success' => false, 'message' => 'Token inválido.'], 401);
-        }
-
-        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-        $email   = $payload['email'] ?? null;
-
-        if (!$email) {
-            return response()->json(['success' => false, 'message' => 'Email no encontrado en el token.'], 401);
-        }
-
-        $coach = User::where('email', $email)->first();
+        $coach = auth()->user();
 
         if (!$coach) {
-            return response()->json(['success' => false, 'message' => 'Coach no encontrado.'], 404);
+            return response()->json(['success' => false, 'message' => 'No autenticado.'], 401);
         }
 
         $miembros = User::where('id_coach', $coach->id_usuario)
             ->select('id_usuario', 'nombre', 'email', 'plan')
-            ->get()
-            ->map(fn($m) => [
-                'id_usuario' => $m->id_usuario,
-                'nombre'     => $m->nombre,
-                'email'      => $m->email,
-                'plan'       => $m->plan,
-            ]);
+            ->get();
 
         return response()->json([
             'success' => true,
@@ -53,7 +41,10 @@ class CoachController extends Controller
         ]);
     }
 
-    // POST /api/coach/asignar
+    /**
+     * POST /api/coach/asignar
+     * Asignar un coach a un usuario
+     */
     public function asignar(Request $request)
     {
         $request->validate([
@@ -78,10 +69,13 @@ class CoachController extends Controller
         ]);
     }
 
-    // GET /api/coach/rutina/{id_usuario}
+    /**
+     * GET /api/coach/rutina/{id_usuario}
+     * Obtener rutinas asignadas al usuario
+     */
     public function obtenerRutina($id_usuario)
     {
-        $rutinas = Rutina::where('id_usuario', $id_usuario)->get();
+        $rutinas = $this->routineService->getUserRoutines($id_usuario);
 
         return response()->json([
             'success' => true,
@@ -89,28 +83,56 @@ class CoachController extends Controller
         ]);
     }
 
-    // POST /api/coach/rutina/{id_usuario}
+    /**
+     * POST /api/coach/rutina/{id_usuario}
+     * Crear y asignar una rutina a un usuario
+     */
     public function crearRutina(Request $request, $id_usuario)
     {
         $request->validate([
-            'nombre' => 'required|string',
-            'descripcion' => 'required|string',
-            'duracion' => 'required|integer',
-            'nivel' => 'required|string',
+            'nombre'      => 'required|string|max:255',
+            'duracion'    => 'required|string|max:100',
+            'nivel'       => 'required|string|max:100',
+            'ejercicios'  => 'nullable|array',
+            'imagen'      => 'nullable|string',
         ]);
 
-        $rutina = Rutina::create([
-            'nombre' => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'duracion' => $request->duracion,
-            'nivel' => $request->nivel,
-            'id_usuario' => $id_usuario,
+        $coach = auth()->user();
+
+        if (!$coach) {
+            return response()->json(['success' => false, 'message' => 'No autenticado.'], 401);
+        }
+
+        $rutina = $this->routineService->createRoutine([
+            'nombre'      => $request->nombre,
+            'duracion'    => $request->duracion,
+            'nivel'       => $request->nivel,
+            'ejercicios'  => $request->ejercicios,
+            'imagen'      => $request->imagen,
+            'id_coach'    => $coach->id_usuario,
         ]);
+
+        $this->routineService->assignRoutineToUser($rutina->id, $id_usuario);
 
         return response()->json([
             'success' => true,
-            'message' => 'Rutina creada correctamente',
-            'data' => $rutina,
+            'message' => 'Rutina creada y asignada correctamente.',
+            'data'    => $rutina,
         ], 201);
+    }
+
+    /**
+     * GET /api/coach/email-logs
+     * Obtener el historial de correos enviados por simulaciones
+     */
+    public function emailLogs(Request $request)
+    {
+        $userId = $request->integer('id_usuario', 0);
+        $logs = $this->routineService->getEmailLogs($userId ?: null);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $logs,
+        ]);
     }
 }

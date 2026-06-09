@@ -10,6 +10,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        DB::statement('DROP VIEW IF EXISTS public.user_count');
         DB::statement('CREATE VIEW public.user_count AS SELECT COUNT(*) as total FROM auth.users');
     }
 

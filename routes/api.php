@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\RutinaController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TiendaController;
 use App\Http\Controllers\Api\WompiController;
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\ExerciseController;
 use Illuminate\Support\Facades\Route;
 
 // ── Pública ──────────────────────────────────────────
@@ -18,6 +20,8 @@ Route::post('/wompi/signature', [WompiController::class, 'generateSignature']);
 Route::post('/wompi/checkout',  [WompiController::class, 'checkoutConfig']);
 Route::post('/wompi/webhook',   [WompiController::class, 'webhook']);
 Route::get('/rutinas', [RutinaController::class, 'index']);
+Route::get('/exercises', [ExerciseController::class, 'index']);
+Route::get('/exercises/{id}', [ExerciseController::class, 'show']);
 
 Route::get('/plans', function () {
     return response()->json([
@@ -73,37 +77,37 @@ Route::put('/products/{product}',     [ProductController::class, 'update']);
 Route::patch('/products/{product}',   [ProductController::class, 'update']);
 Route::delete('/products/{product}',  [ProductController::class, 'destroy']);
 
-// ── Coach: usa JWT de Supabase, no Sanctum ───────────
-Route::prefix('coach')->group(function () {
-    Route::get('/miembros',             [CoachController::class, 'miembros']);
-    Route::get('/rutina/{id_usuario}',  [CoachController::class, 'obtenerRutina']);
-    Route::post('/asignar',             [CoachController::class, 'asignar']);
-    Route::post('/rutina/{id_usuario}', [CoachController::class, 'crearRutina']);
-});
-
-// ── Protegidas con Sanctum ───────────────────────────
-Route::middleware('auth:sanctum')->group(function () {
+// ── Rutas Protegidas mediante Supabase Auth ───────────
+Route::middleware(['supabase.auth'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-
     Route::get('/sales/{sale}', [SaleController::class, 'show']);
     Route::post('/sales',       [SaleController::class, 'store']);
 
-    Route::get('/dispositivos', function () {
-        return response()->json(['success' => true, 'data' => [
-            ['id' => 1, 'nombre' => 'Caminadora Pro-Form',                    'tipo' => 'Cardio',      'estado' => 'operativo',       'ultima_mantencion' => '2026-04-10'],
-            ['id' => 2, 'nombre' => 'Bicicleta Spinning Matrix',              'tipo' => 'Cardio',      'estado' => 'operativo',       'ultima_mantencion' => '2026-03-15'],
-            ['id' => 3, 'nombre' => 'Prensa de Piernas Hammer Strength',      'tipo' => 'Fuerza',      'estado' => 'en mantencion',   'ultima_mantencion' => '2026-05-01'],
-            ['id' => 4, 'nombre' => 'Mancuernero Completo (2kg - 40kg)',      'tipo' => 'Peso Libre',  'estado' => 'operativo',       'ultima_mantencion' => '2026-01-20'],
-            ['id' => 5, 'nombre' => 'Elíptica Life Fitness',                  'tipo' => 'Cardio',      'estado' => 'fuera de servicio','ultima_mantencion' => '2025-12-05'],
-        ]]);
+    // Rutas exclusivas del Coach
+    Route::middleware(['role:coach'])->prefix('coach')->group(function () {
+        Route::get('/miembros',             [CoachController::class, 'miembros']);
+        Route::get('/rutina/{id_usuario}',  [CoachController::class, 'obtenerRutina']);
+        Route::post('/asignar',             [CoachController::class, 'asignar']);
+        Route::post('/rutina/{id_usuario}', [CoachController::class, 'crearRutina']);
+        Route::get('/email-logs',           [CoachController::class, 'emailLogs']);
     });
 
-    Route::get('/prestamos', function () {
-        return response()->json(['success' => true, 'data' => [
-            ['id' => 1, 'usuario' => 'Carlos Gomez',      'dispositivo' => 'Cinturón de Fuerza (M)',             'fecha_prestamo' => '2026-05-20 08:30', 'estado' => 'activo'],
-            ['id' => 2, 'usuario' => 'Mariana Restrepo',  'dispositivo' => 'Bandas Elásticas (Resistencia Media)','fecha_prestamo' => '2026-05-20 09:15', 'estado' => 'activo'],
-            ['id' => 3, 'usuario' => 'Juan Perez',        'dispositivo' => 'Cinturón de Fuerza (L)',             'fecha_prestamo' => '2026-05-19 14:00', 'estado' => 'devuelto'],
-            ['id' => 4, 'usuario' => 'Andres Tobon',      'dispositivo' => 'Lazo de Saltar Speed 2.0',           'fecha_prestamo' => '2026-05-20 11:00', 'estado' => 'activo'],
-        ]]);
+    // Rutas exclusivas del Administrador
+    Route::middleware(['role:admin'])->prefix('admin')->group(function () {
+        Route::get('/users', [AdminController::class, 'users']);
+        Route::put('/users/{id}', [AdminController::class, 'updateUser']);
+        Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+        Route::post('/users/{id}/restore', [AdminController::class, 'restoreUser']);
+        Route::get('/memberships', [AdminController::class, 'memberships']);
+        Route::get('/dashboard-stats', [AdminController::class, 'dashboardStats']);
+        
+        // Ejercicios Admin CRUD
+        Route::post('/exercises', [ExerciseController::class, 'store']);
+        Route::put('/exercises/{id}', [ExerciseController::class, 'update']);
+        Route::delete('/exercises/{id}', [ExerciseController::class, 'destroy']);
+        Route::post('/exercises/{id}/restore', [ExerciseController::class, 'restore']);
+
+        // Productos Admin
+        Route::post('/products/{id}/restore', [ProductController::class, 'restore']);
     });
 });

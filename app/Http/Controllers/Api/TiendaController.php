@@ -5,42 +5,46 @@ use App\Http\Controllers\Controller;
 use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Producto;
+use App\Services\ProductService;
 use Illuminate\Http\Request;
 
 class TiendaController extends Controller
 {
+    protected $productService;
+
+    public function __construct(ProductService $productService)
+    {
+        $this->productService = $productService;
+    }
+
     // GET /api/tienda/productos
     // Devuelve productos con filtros para la página de tienda
     public function productos(Request $request)
     {
-        $query = Producto::with(['categoria', 'marca'])
-            ->disponibles();  // scope: activo=true y stock>0
+        $filters = [
+            'search'       => $request->input('buscar') ?? $request->input('search'),
+            'categoria_id' => $request->input('categoria') ?? $request->input('categoria_id'),
+            'marca_id'     => $request->input('marca') ?? $request->input('marca_id'),
+            'orden'        => $request->input('orden', 'nombre'),
+            'activo'       => true,
+        ];
 
-        // Filtro por categoría
-        if ($request->filled('categoria')) {
-            $query->where('id_categoria', $request->categoria);
+        $perPage = $request->input('per_page', 9); // default 9 products per page for public Tienda
+
+        if ($perPage > 0) {
+            $paginated = $this->productService->listProducts($filters, $perPage);
+            $items = $paginated->items();
+            $total = $paginated->total();
+            $currentPage = $paginated->currentPage();
+            $lastPage = $paginated->lastPage();
+        } else {
+            $items = $this->productService->listProducts($filters, 0);
+            $total = count($items);
+            $currentPage = 1;
+            $lastPage = 1;
         }
 
-        // Filtro por marca
-        if ($request->filled('marca')) {
-            $query->where('id_marca', $request->marca);
-        }
-
-        // Búsqueda por nombre
-        if ($request->filled('buscar')) {
-            $query->where('nombre', 'ilike', '%' . $request->buscar . '%');
-        }
-
-        // Ordenar
-        $orden = $request->get('orden', 'nombre');
-        match ($orden) {
-            'precio_asc'  => $query->orderBy('precio_venta', 'asc'),
-            'precio_desc' => $query->orderBy('precio_venta', 'desc'),
-            'nuevo'       => $query->latest('creado_en'),
-            default       => $query->orderBy('nombre'),
-        };
-
-        $productos = $query->get()->map(function ($p) {
+        $productos = collect($items)->map(function ($p) {
             return [
                 'id'            => $p->id_producto,
                 'nombre'        => $p->nombre,
@@ -58,9 +62,12 @@ class TiendaController extends Controller
         });
 
         return response()->json([
-            'success'  => true,
-            'total'    => $productos->count(),
-            'productos'=> $productos,
+            'success'      => true,
+            'total'        => $total,
+            'current_page' => $currentPage,
+            'last_page'    => $lastPage,
+            'per_page'     => (int) $perPage,
+            'productos'    => $productos,
         ]);
     }
 

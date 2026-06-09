@@ -1,27 +1,33 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ProductService;
 use App\Models\Producto;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    // GET /api/products
+    protected $productService;
+
+    public function __construct(ProductService $productService)
+    {
+        $this->productService = $productService;
+    }
+
+    /**
+     * GET /api/products
+     * Listar productos con filtros y búsqueda
+     */
     public function index(Request $request)
     {
-        $query = Producto::with(['categoria', 'marca'])->where('activo', true);
+        $filters = $request->only(['search', 'categoria_id', 'marca_id', 'deleted']);
+        // Obtener sin paginación si se requiere para el listado antiguo, o con ella
+        // En index anterior se traía todo: Producto::with(...)->get()
+        $products = $this->productService->listProducts($filters, 0);
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('nombre', 'ilike', "%{$search}%")
-                  ->orWhere('sku', 'ilike', "%{$search}%");
-            });
-        }
-
-        $productos = $query->orderBy('nombre')->get()->map(function ($p) {
+        $formatted = $products->map(function ($p) {
             return [
                 'id'            => $p->id_producto,
                 'nombre'        => $p->nombre,
@@ -35,37 +41,40 @@ class ProductController extends Controller
                 'estado_stock'  => $p->estado_stock,
                 'margen'        => $p->margen,
                 'imagen'        => $p->imagen_url,
+                'deleted_at'    => $p->deleted_at,
             ];
         });
 
         return response()->json([
             'success'   => true,
-            'total'     => $productos->count(),
-            'data'      => $productos,
-            'products'  => $productos,
+            'total'     => $formatted->count(),
+            'data'      => $formatted,
+            'products'  => $formatted,
         ]);
     }
 
-    // GET /api/products/{id}
+    /**
+     * GET /api/products/{id}
+     * Obtener detalle de producto
+     */
     public function show($id)
     {
-        $producto = Producto::with(['categoria', 'marca'])
-            ->where('id_producto', $id)
-            ->firstOrFail();
+        $product = $this->productService->getProduct($id);
 
         $formatted = [
-            'id'            => $producto->id_producto,
-            'nombre'        => $producto->nombre,
-            'sku'           => $producto->sku,
-            'descripcion'   => $producto->descripcion,
-            'categoria'     => $producto->categoria?->nombre,
-            'marca'         => $producto->marca?->nombre,
-            'precio'        => (float) $producto->precio_venta,
-            'precio_costo'  => (float) $producto->precio_costo,
-            'stock'         => $producto->stock_actual,
-            'estado_stock'  => $producto->estado_stock,
-            'margen'        => $producto->margen,
-            'imagen_url'    => $producto->imagen_url,
+            'id'            => $product->id_producto,
+            'nombre'        => $product->nombre,
+            'sku'           => $product->sku,
+            'descripcion'   => $product->descripcion,
+            'categoria'     => $product->categoria?->nombre,
+            'marca'         => $product->marca?->nombre,
+            'precio'        => (float) $product->precio_venta,
+            'precio_costo'  => (float) $product->precio_costo,
+            'stock'         => $product->stock_actual,
+            'estado_stock'  => $product->estado_stock,
+            'margen'        => $product->margen,
+            'imagen_url'    => $product->imagen_url,
+            'deleted_at'    => $product->deleted_at,
         ];
 
         return response()->json([
@@ -75,6 +84,10 @@ class ProductController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/products/stock/summary
+     * Resumen de stock
+     */
     public function stockSummary()
     {
         $totalProducts = Producto::where('activo', true)->count();
@@ -95,57 +108,85 @@ class ProductController extends Controller
         ]);
     }
 
-    // POST /api/products
+    /**
+     * POST /api/products
+     * Crear producto (Admin)
+     */
     public function store(Request $request)
     {
-        $id = DB::table('productos')->insertGetId([
-            'nombre'       => $request->nombre,
-            'sku'          => $request->sku,
-            'descripcion'  => $request->descripcion ?? null,
-            'id_categoria' => $request->id_categoria ?? null,
-            'id_marca'     => $request->id_marca ?? null,
-            'precio_venta' => $request->precio ?? 0,
-            'precio_costo' => ($request->precio ?? 0) * 0.65,
-            'stock_actual' => $request->stock ?? 0,
-            'stock_minimo' => 5,
-            'imagen_url'   => $request->imagen_url ?? null,
-            'activo'       => true,
-            'created_at'   => now(),
-            'updated_at'   => now(),
-        ], 'id_producto');
+        $data = $request->validate([
+            'nombre'       => 'required|string|max:255',
+            'sku'          => 'required|string|max:100',
+            'descripcion'  => 'nullable|string',
+            'id_categoria' => 'nullable|integer',
+            'id_marca'     => 'nullable|integer',
+            'precio'       => 'required|numeric',
+            'stock'        => 'required|integer',
+            'imagen_url'   => 'nullable|string',
+        ]);
 
-        return response()->json(['success' => true, 'id' => $id], 201);
+        $product = $this->productService->createProduct([
+            'nombre'       => $data['nombre'],
+            'sku'          => $data['sku'],
+            'descripcion'  => $data['descripcion'],
+            'id_categoria' => $data['id_categoria'],
+            'id_marca'     => $data['id_marca'],
+            'precio_venta' => $data['precio'],
+            'stock_actual' => $data['stock'],
+            'imagen_url'   => $data['imagen_url'],
+            'activo'       => true,
+        ]);
+
+        return response()->json(['success' => true, 'id' => $product->id_producto], 201);
     }
 
-    // PUT /api/products/{id}
+    /**
+     * PUT /api/products/{id}
+     * Actualizar producto (Admin)
+     */
     public function update(Request $request, $id)
     {
-        $data = [];
-        if ($request->has('nombre'))       $data['nombre']       = $request->nombre;
-        if ($request->has('sku'))          $data['sku']          = $request->sku;
-        if ($request->has('descripcion'))  $data['descripcion']  = $request->descripcion;
-        if ($request->has('precio'))       $data['precio_venta'] = $request->precio;
-        if ($request->has('stock'))        $data['stock_actual'] = $request->stock;
-        if ($request->has('imagen_url'))   $data['imagen_url']   = $request->imagen_url;
-        if ($request->has('id_categoria')) $data['id_categoria'] = $request->id_categoria;
-        if ($request->has('id_marca'))     $data['id_marca']     = $request->id_marca;
-        if ($request->has('id_categoria')) $data['id_categoria'] = $request->id_categoria;
-        if ($request->has('id_marca')) $data['id_marca'] = $request->id_marca;
+        $payload = [];
+        if ($request->has('nombre'))       $payload['nombre']       = $request->nombre;
+        if ($request->has('sku'))          $payload['sku']          = $request->sku;
+        if ($request->has('descripcion'))  $payload['descripcion']  = $request->descripcion;
+        if ($request->has('precio'))       $payload['precio_venta'] = $request->precio;
+        if ($request->has('stock'))        $payload['stock_actual'] = $request->stock;
+        if ($request->has('imagen_url'))   $payload['imagen_url']   = $request->imagen_url;
+        if ($request->has('id_categoria')) $payload['id_categoria'] = $request->id_categoria;
+        if ($request->has('id_marca'))     $payload['id_marca']     = $request->id_marca;
 
-        DB::table('productos')->where('id_producto', $id)->update($data);
+        $this->productService->updateProduct($id, $payload);
 
         return response()->json(['success' => true, 'message' => 'Producto actualizado']);
     }
 
-    // DELETE /api/products/{id}
+    /**
+     * DELETE /api/products/{id}
+     * Soft delete producto (Admin)
+     */
     public function destroy($id)
     {
-        DB::table('productos')->where('id_producto', $id)->delete();
+        $this->productService->deleteProduct($id);
 
-        return response()->json(['success' => true, 'message' => 'Producto eliminado']);
+        return response()->json(['success' => true, 'message' => 'Producto inhabilitado correctamente.']);
     }
 
-    // POST /api/products/import
+    /**
+     * POST /api/products/{id}/restore
+     * Restaurar producto (Admin)
+     */
+    public function restore($id)
+    {
+        $this->productService->restoreProduct($id);
+
+        return response()->json(['success' => true, 'message' => 'Producto restaurado correctamente.']);
+    }
+
+    /**
+     * POST /api/products/import
+     * Importar productos (Admin)
+     */
     public function import(Request $request)
     {
         $request->validate([
@@ -156,30 +197,24 @@ class ProductController extends Controller
             'productos.*.stock' => 'required|integer',
         ]);
 
-        $productos = array_map(function ($p) {
-            return [
+        foreach ($request->productos as $p) {
+            $this->productService->createProduct([
                 'nombre'       => $p['nombre'],
                 'sku'          => $p['sku'],
                 'descripcion'  => $p['descripcion'] ?? null,
                 'id_categoria' => $p['id_categoria'] ?? null,
                 'id_marca'     => $p['id_marca'] ?? null,
                 'precio_venta' => $p['precio'],
-                'precio_costo' => $p['precio'] * 0.65,
                 'stock_actual' => $p['stock'],
-                'stock_minimo' => 5,
                 'imagen_url'   => $p['imagen_url'] ?? null,
                 'activo'       => true,
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ];
-        }, $request->productos);
-
-        Producto::insert($productos);
+            ]);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Productos importados correctamente',
-            'total' => count($productos)
+            'total' => count($request->productos)
         ], 201);
     }
 }

@@ -8,7 +8,7 @@ class AdminOnly
 {
     public function handle(Request $request, Closure $next)
     {
-        if (! $request->user() || $request->user()->role !== 'admin') {
+        if (! $request->user() || $request->user()->rol !== 'admin') {
             return response()->json(['success' => false, 'message' => 'Solo administradores.'], 403);
         }
         return $next($request);

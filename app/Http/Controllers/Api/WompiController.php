@@ -131,6 +131,46 @@ class WompiController extends Controller
         $venta->notas = 'Pago Wompi ID: ' . ($transaction['id'] ?? '') . ' - Estado: ' . $status;
         $venta->save();
 
+        // Registrar membresía relacional y log de auditoría si es un plan
+        if ($status === 'APPROVED') {
+            try {
+                $items = $venta->items;
+                // Si items viene como string, decodificarlo
+                if (is_string($items)) {
+                    $items = json_decode($items, true);
+                }
+
+                if (is_array($items)) {
+                    $membershipService = app(\App\Services\MembershipService::class);
+                    foreach ($items as $item) {
+                        $productId = $item['product_id'] ?? '';
+                        if (str_starts_with($productId, 'plan_')) {
+                            $planName = str_replace('plan_', '', $productId);
+                            
+                            // Registrar compra relacional y actualizar fallback en usuarios
+                            $purchase = $membershipService->registerPurchase(
+                                $venta->id_usuario,
+                                $planName,
+                                $reference,
+                                'aprobado'
+                            );
+
+                            // Registrar log de auditoría
+                            \App\Services\AuditService::log(
+                                'compra',
+                                'membresia',
+                                $purchase->id_compra_membresia,
+                                "Compra de membresía " . strtoupper($planName) . " aprobada vía Wompi. Referencia: {$reference}",
+                                $venta->id_usuario
+                            );
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Error procesando membresía en webhook de Wompi: " . $e->getMessage());
+            }
+        }
+
         return response()->json(['success' => true]);
     }
 }

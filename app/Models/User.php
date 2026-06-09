@@ -62,4 +62,21 @@ class User extends Authenticatable
     {
         return $this->hasMany(User::class, 'id_coach', 'id_usuario');
     }
+
+    public function comprasMembresias()
+    {
+        return $this->hasMany(CompraMembresia::class, 'id_usuario', 'id_usuario');
+    }
+
+    public function rutinas()
+    {
+        return $this->belongsToMany(Rutina::class, 'rutina_usuario', 'id_usuario', 'id_rutina')
+                    ->withPivot('asignado_at', 'activo')
+                    ->withTimestamps();
+    }
+
+    public function rutinasDirectas()
+    {
+        return $this->hasMany(Rutina::class, 'id_usuario', 'id_usuario');
+    }
 }

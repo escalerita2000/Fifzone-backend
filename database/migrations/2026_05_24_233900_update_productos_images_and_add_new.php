@@ -7,6 +7,23 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Asegurar que existan las categorías referenciadas
+        DB::table('categorias')->insertOrIgnore([
+            ['id_categoria' => 1, 'nombre' => 'Proteínas',   'slug' => 'proteinas',   'descripcion' => 'Suplementos proteicos', 'activo' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id_categoria' => 2, 'nombre' => 'Pre-entreno', 'slug' => 'pre-entreno', 'descripcion' => 'Energéticos',           'activo' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id_categoria' => 3, 'nombre' => 'Vitaminas',   'slug' => 'vitaminas',   'descripcion' => 'Multivitaminas',        'activo' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id_categoria' => 4, 'nombre' => 'Accesorios',  'slug' => 'accesorios',  'descripcion' => 'Equipamiento',          'activo' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::statement("SELECT setval('categorias_id_categoria_seq', COALESCE((SELECT MAX(id_categoria)+1 FROM categorias), 1), false)");
+
+        // Asegurar que existan las marcas referenciadas
+        DB::table('marcas')->insertOrIgnore([
+            ['id_marca' => 1, 'nombre' => 'Optimum Nutrition', 'pais_origen' => 'USA', 'logo_url' => '', 'created_at' => now(), 'updated_at' => now()],
+            ['id_marca' => 2, 'nombre' => 'MuscleTech',        'pais_origen' => 'USA', 'logo_url' => '', 'created_at' => now(), 'updated_at' => now()],
+            ['id_marca' => 3, 'nombre' => 'Dymatize',          'pais_origen' => 'USA', 'logo_url' => '', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::statement("SELECT setval('marcas_id_marca_seq', COALESCE((SELECT MAX(id_marca)+1 FROM marcas), 1), false)");
+
         // Actualizar imágenes de productos existentes (columna: imagen_url)
         DB::statement("UPDATE productos SET imagen_url = 'https://images.unsplash.com/photo-1579722820903-f38d19b08c2d?auto=format&fit=crop&w=800&q=80' WHERE sku = 'WGS-001'");
         DB::statement("UPDATE productos SET imagen_url = 'https://images.unsplash.com/photo-1546483875-ad9014c88eba?auto=format&fit=crop&w=800&q=80' WHERE sku = 'C4-002'");

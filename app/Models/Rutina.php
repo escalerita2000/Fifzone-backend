@@ -21,6 +21,8 @@ class Rutina extends Model
         'imagen',
         'ejercicios',
         'id_usuario',
+        'id_coach',
+        'sent_at',
         'deleted_at',
         'deleted_by',
         'is_deleted',
@@ -29,7 +31,25 @@ class Rutina extends Model
     protected $casts = [
         'ejercicios' => 'array',
         'is_deleted' => 'boolean',
+        'sent_at'    => 'datetime',
     ];
 
     public $timestamps = true;
+
+    public function usuarios()
+    {
+        return $this->belongsToMany(User::class, 'rutina_usuario', 'id_rutina', 'id_usuario')
+                    ->withPivot('asignado_at', 'activo')
+                    ->withTimestamps();
+    }
+
+    public function usuarioDirecto()
+    {
+        return $this->belongsTo(User::class, 'id_usuario', 'id_usuario');
+    }
+
+    public function coach()
+    {
+        return $this->belongsTo(User::class, 'id_coach', 'id_usuario');
+    }
 }

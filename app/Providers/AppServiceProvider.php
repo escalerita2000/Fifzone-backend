@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +21,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Builder::macro('whereLike', function ($column, $value) {
+            $likeOperator = DB::connection()->getDriverName() === 'sqlite' ? 'like' : 'ilike';
+            return $this->where($column, $likeOperator, $value);
+        });
+
+        Builder::macro('orWhereLike', function ($column, $value) {
+            $likeOperator = DB::connection()->getDriverName() === 'sqlite' ? 'like' : 'ilike';
+            return $this->orWhere($column, $likeOperator, $value);
+        });
     }
 }
