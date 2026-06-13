@@ -9,42 +9,92 @@ use App\Models\Venta;
 use App\Models\VentaItem;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Usuarios
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@fitzone.com'],
+        // 1. Usuarios (Sincronización con Supabase Auth y Laravel Local)
+        $seededUsers = [
             [
-                'nombre'        => 'Admin FitZone',
-                'password_hash' => Hash::make('FitZoneAdmin123*'),
-                'rol'           => 'admin',
-                'activo'        => true,
-            ]
-        );
+                'email' => 'admin@fitzone.com',
+                'nombre' => 'Admin FitZone',
+                'password' => 'fitzone123',
+                'rol' => 'admin',
+            ],
+            [
+                'email' => 'juan@fitzone.com',
+                'nombre' => 'Juan Perez',
+                'password' => 'user123',
+                'rol' => 'user',
+            ],
+            [
+                'email' => 'coach@fitzone.com',
+                'nombre' => 'Carlos Coach',
+                'password' => 'coach123',
+                'rol' => 'coach',
+            ],
+        ];
 
-        $usuario = User::firstOrCreate(
-            ['email' => 'juan@fitzone.com'],
-            [
-                'nombre'        => 'Juan Perez',
-                'password_hash' => Hash::make('FitZone123*'),
-                'rol'           => 'user',
-                'activo'        => true,
-            ]
-        );
+        foreach ($seededUsers as $u) {
+            $hashed = Hash::make($u['password']);
 
-        $coach = User::firstOrCreate(
-            ['email' => 'coach@fitzone.com'],
-            [
-                'nombre'        => 'Carlos Coach',
-                'password_hash' => Hash::make('Coach123*'),
-                'rol'           => 'coach',
-                'activo'        => true,
-            ]
-        );
+            // 1.1 Sincronizar con auth.users de Supabase
+            $authUser = DB::table('auth.users')->where('email', $u['email'])->first();
+
+            if (!$authUser) {
+                $uuid = Str::uuid()->toString();
+                DB::table('auth.users')->insert([
+                    'instance_id' => '00000000-0000-0000-0000-000000000000',
+                    'id' => $uuid,
+                    'aud' => 'authenticated',
+                    'role' => 'authenticated',
+                    'email' => $u['email'],
+                    'encrypted_password' => $hashed,
+                    'email_confirmed_at' => now(),
+                    'raw_app_meta_data' => json_encode(['provider' => 'email', 'providers' => ['email']]),
+                    'raw_user_meta_data' => json_encode([
+                        'sub' => $uuid,
+                        'name' => $u['nombre'],
+                        'email' => $u['email'],
+                        'email_verified' => true,
+                        'phone_verified' => false
+                    ]),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $uuid = $authUser->id;
+                DB::table('auth.users')->where('id', $uuid)->update([
+                    'encrypted_password' => $hashed,
+                    'email_confirmed_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // 1.2 Insertar o actualizar en public.usuarios con el mismo hash
+            $existingUser = User::where('email', $u['email'])->first();
+            if ($existingUser) {
+                $existingUser->update([
+                    'nombre' => $u['nombre'],
+                    'password_hash' => $hashed,
+                    'rol' => $u['rol'],
+                    'activo' => true,
+                ]);
+            } else {
+                User::create([
+                    'nombre' => $u['nombre'],
+                    'email' => $u['email'],
+                    'password_hash' => $hashed,
+                    'rol' => $u['rol'],
+                    'activo' => true,
+                ]);
+            }
+        }
+
+        $admin = User::where('email', 'admin@fitzone.com')->first();
 
         // 2. Categorías
         $cat1 = Categoria::firstOrCreate(['nombre' => 'Proteínas'], ['slug' => 'proteinas', 'descripcion' => 'Suplementos proteicos']);
@@ -70,6 +120,7 @@ class DatabaseSeeder extends Seeder
                 'stock_actual'  => 15,
                 'stock_minimo'  => 5,
                 'activo'        => true,
+                'imagen_url'    => 'https://images.unsplash.com/photo-1579758629938-03607ccdbaba?auto=format&fit=crop&w=800&q=80',
             ]
         );
 
@@ -85,6 +136,7 @@ class DatabaseSeeder extends Seeder
                 'stock_actual'  => 3,
                 'stock_minimo'  => 5,
                 'activo'        => true,
+                'imagen_url'    => 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
             ]
         );
 
@@ -100,6 +152,7 @@ class DatabaseSeeder extends Seeder
                 'stock_actual'  => 10,
                 'stock_minimo'  => 5,
                 'activo'        => true,
+                'imagen_url'    => 'https://images.unsplash.com/photo-1593079831268-3381b0db4a77?auto=format&fit=crop&w=800&q=80',
             ]
         );
 
@@ -115,6 +168,7 @@ class DatabaseSeeder extends Seeder
                 'stock_actual'  => 20,
                 'stock_minimo'  => 5,
                 'activo'        => true,
+                'imagen_url'    => 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=800&q=80',
             ]
         );
 
@@ -130,6 +184,7 @@ class DatabaseSeeder extends Seeder
                 'stock_actual'  => 8,
                 'stock_minimo'  => 5,
                 'activo'        => true,
+                'imagen_url'    => 'https://images.unsplash.com/photo-1579758629938-03607ccdbaba?auto=format&fit=crop&w=800&q=80',
             ]
         );
 
@@ -145,6 +200,7 @@ class DatabaseSeeder extends Seeder
                 'stock_actual'  => 12,
                 'stock_minimo'  => 3,
                 'activo'        => true,
+                'imagen_url'    => 'https://images.unsplash.com/photo-1605296867304-46d5465a25f1?auto=format&fit=crop&w=800&q=80',
             ]
         );
 
